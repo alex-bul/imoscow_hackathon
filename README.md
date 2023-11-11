@@ -17,7 +17,11 @@
 - zipfile
 
 Выполните следующую команду для установки библиотек:
->     $pip install ultralytics fastapi bootstrap-py python-ffmpeg imagehash scikit-learn pandas ultralitycs zipfile
+>     $pip install ultralytics fastapi bootstrap-py python-ffmpeg imagehash scikit-learn pandas ultralitycs zipfile python-multipart
+
+Также необходимо установить веб-сервер
+>     pip install "uvicorn[standard]"
+
 
 ## Функциональность сервиса
 - Детекции объектов нестационарной незаконной торговли на подгружаемых видеозаписях;
