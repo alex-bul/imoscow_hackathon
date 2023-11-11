@@ -84,11 +84,12 @@ async def upload_video(video: UploadFile = File(...)) -> AnalyzeResult:
                 num_classes = {name: 0 for name in result.names.values()}
                 for cl in det_classes:
                     num_classes[result.names[cl.item()]] += 1
-                frames_objects_dict[frame_name] = {key: value for key, value in num_classes.items() if value > 0}
+                dict_count_obj = {key: value for key, value in num_classes.items() if value > 0}
 
-                if previous_annot != frames_objects_dict[frame_name]:
+                if previous_annot != dict_count_obj:
                     cv2.imwrite(frame_path, result.plot()[:, :, :])
-                    previous_annot = frames_objects_dict[frame_name]
+                    previous_annot = dict_count_obj
+                    frames_objects_dict[frame_name] = dict_count_obj
 
             vid_writer.write(result.plot()[:, :, :])
         else:
@@ -97,8 +98,6 @@ async def upload_video(video: UploadFile = File(...)) -> AnalyzeResult:
         counter += 1
     vid_writer.release()
     cap.release()
-
-
 
     # Возвращаем результаты проверки в формате JSON
     detected_objects_frame = list({'frame_name': key, 'object_name': key_obj, 'count': value_obj, 'time': int(frame_cut_time[key])}
