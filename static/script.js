@@ -29,7 +29,7 @@ document.getElementById('uploadForm').addEventListener('submit', function (event
                         <div class="card mb-3 d-flex flex-row" style="height: 400px">
                             <div class="card-body">
                                 <h4 class="card-title">${item.object_name}</h4>
-                                <p class="card-text">Время: ${item.time} сек.</p>
+                                <p class="card-text">Время: ${item.time}</p>
                                 <p class="card-text">Количество: ${item.count}</p>
                                 <p class="card-text">Имя кадра: ${item.frame_name}</p>
                                 <a href="${item.frame_url}"

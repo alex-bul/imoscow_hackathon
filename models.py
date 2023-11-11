@@ -8,7 +8,7 @@ class ObjectInfo(BaseModel):
     frame_url: str
     object_name: str
     count: int
-    time: int
+    time: str
 
 
 class AnalyzeResult(BaseModel):

@@ -1,5 +1,6 @@
 import os.path
 
+import datetime
 import uvicorn
 import aiofiles
 
@@ -124,7 +125,7 @@ async def upload_video(request: Request, video: UploadFile = File(...)) -> Analy
         for key_obj, value_obj in value.items():
             detected_objects_frame.append(
                 {'frame_name': key, 'object_name': CLASS_NAMING.get(key_obj.lower(), key_obj), 'count': value_obj,
-                 'time': int(frame_cut_time[key]),
+                 'time': str(datetime.timedelta(seconds=int(frame_cut_time[key])))[-9:],
                  'frame_url': str(request.url_for('frames', path=key))})
     results = {
         'filename': detected_video_name,
