@@ -17,25 +17,33 @@ document.getElementById('uploadForm').addEventListener('submit', function (event
     })
     .then(response => response.json())
     .then(function (data) {
-        let resultTable = document.getElementById('resultTable');
-        let tbody = resultTable.getElementsByTagName('tbody')[0];
         let filename = data.filename;
-        console.log(data)
+        let resultBlock = document.getElementById('result_block');
+        resultBlock.innerHTML = '';
+        document.getElementById('loader').classList.add('d-none');
         if(data.objects.length){
             for(let item of data.objects){
-                console.log(item);
-                let newRow = tbody.insertRow();
-                let objectNameCell = newRow.insertCell();
-                let countCell = newRow.insertCell();
-                let timeCell = newRow.insertCell();
+                item.frame_name = '1.jpg'
+                let cardHTML = `
+                    <div class="mt-3 col-10">
+                        <div class="card mb-3 d-flex flex-row" style="height: 400px">
+                            <div class="card-body">
+                                <h4 class="card-title">${item.object_name}</h4>
+                                <p class="card-text">Время: ${item.time}</p>
+                                <p class="card-text">Количество: ${item.count}</p>
+                                <p class="card-text">Имя кадра: ${item.frame_name}</p>
+                                <a href="http://127.0.0.1:3000/static/1.jpg"
+                                download class="btn btn-primary">Скачать фото</a>
+                            </div>
+                            <img src="http://127.0.0.1:3000/static/1.jpg" class="img-fluid rounded m-2"
+                                 style="width: 60%; height: auto; object-fit: cover; display: block">
+                        </div>
+                    </div>
+                  `;
 
-                objectNameCell.innerText = item.object_name;
-                countCell.innerText = item.count;
-                timeCell.innerText = item.time;
+                resultBlock.innerHTML += cardHTML;
             }
-            document.getElementById('loader').classList.add('d-none');
             document.getElementById('no_violation').classList.add('d-none');
-            document.getElementById('resultTable').classList.remove('d-none');
             document.getElementById('download_finish').classList.remove('d-none');
 
             DOWNLOAD_FILE = filename
