@@ -22,7 +22,26 @@ TMP_UPLOADS_DIRECTORY = 'uploads'
 TMP_DETECTED_FRAMES = 'frames'
 TMP_DETECTED_VIDEOS = 'detected_videos'
 
+CLASS_NAMING = {
+    'balloons': "Воздушные шары",
+    'box of products': "Продукты",
+    'cotton candy': "Сладкая вата",
+    'cotton candy tent': "Оборудование для сладкой ваты",
+    'different items': "Продажа вещей и предметов",
+    'flowers': "Цветы",
+    'kvas bottle': "Квас в бутылях",
+    'kvas': "Квас в цистерне",
+    'stall': "Продовольственный контейнер",
+    'stall umbr': "Торговая палатка/навес",
+    'trunk': "Продажа из авто"
+}
+
+for folder in [TMP_UPLOADS_DIRECTORY, TMP_DETECTED_FRAMES, TMP_DETECTED_VIDEOS]:
+    if folder not in os.listdir():
+        os.mkdir(folder)
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/frames", StaticFiles(directory="frames"), name="frames")
 
 templates = Jinja2Templates(directory="templates")
 
@@ -41,7 +60,7 @@ async def read_item(filename: str) -> FileResponse:
 
 
 @app.post("/upload")
-async def upload_video(video: UploadFile = File(...)) -> AnalyzeResult:
+async def upload_video(request: Request, video: UploadFile = File(...)) -> AnalyzeResult:
     filename = str(uuid4()) + '.mp4'
     if TMP_UPLOADS_DIRECTORY not in os.listdir():
         os.mkdir(TMP_UPLOADS_DIRECTORY)
@@ -99,13 +118,18 @@ async def upload_video(video: UploadFile = File(...)) -> AnalyzeResult:
     vid_writer.release()
     cap.release()
 
+    detected_objects_frame = []
     # Возвращаем результаты проверки в формате JSON
-    detected_objects_frame = list({'frame_name': key, 'object_name': key_obj, 'count': value_obj, 'time': int(frame_cut_time[key])}
-         for key, value in frames_objects_dict.items()
-         for key_obj, value_obj in value.items())
+    for key, value in frames_objects_dict.items():
+        for key_obj, value_obj in value.items():
+            detected_objects_frame.append(
+                {'frame_name': key, 'object_name': CLASS_NAMING.get(key_obj.lower(), key_obj), 'count': value_obj,
+                 'time': int(frame_cut_time[key]),
+                 'frame_url': str(request.url_for('frames', path=key))})
     results = {
         'filename': detected_video_name,
         'objects': detected_objects_frame}
+    print(results)
     return AnalyzeResult.model_validate(results)
 
 

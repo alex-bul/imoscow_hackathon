@@ -5,6 +5,7 @@ from typing import List
 
 class ObjectInfo(BaseModel):
     frame_name: str
+    frame_url: str
     object_name: str
     count: int
     time: int

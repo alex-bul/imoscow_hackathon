@@ -20,23 +20,23 @@ document.getElementById('uploadForm').addEventListener('submit', function (event
         let filename = data.filename;
         let resultBlock = document.getElementById('result_block');
         resultBlock.innerHTML = '';
+        console.log(data)
         document.getElementById('loader').classList.add('d-none');
         if(data.objects.length){
             for(let item of data.objects){
-                item.frame_name = '1.jpg'
                 let cardHTML = `
                     <div class="mt-3 col-10">
                         <div class="card mb-3 d-flex flex-row" style="height: 400px">
                             <div class="card-body">
                                 <h4 class="card-title">${item.object_name}</h4>
-                                <p class="card-text">Время: ${item.time}</p>
+                                <p class="card-text">Время: ${item.time} сек.</p>
                                 <p class="card-text">Количество: ${item.count}</p>
                                 <p class="card-text">Имя кадра: ${item.frame_name}</p>
-                                <a href="http://127.0.0.1:3000/static/1.jpg"
+                                <a href="${item.frame_url}"
                                 download class="btn btn-primary">Скачать фото</a>
                             </div>
-                            <img src="http://127.0.0.1:3000/static/1.jpg" class="img-fluid rounded m-2"
-                                 style="width: 60%; height: auto; object-fit: cover; display: block">
+                            <img src="${item.frame_url}" class="img-fluid rounded m-2"
+                                 style="height: auto; object-fit: cover; display: block">
                         </div>
                     </div>
                   `;
