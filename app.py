@@ -11,7 +11,6 @@ from fastapi.templating import Jinja2Templates
 
 from models import AnalyzeResult
 import cv2
-import time
 
 from uuid import uuid4
 from yolo_detector import YoloDetector
@@ -66,15 +65,26 @@ async def upload_video(video: UploadFile = File(...)) -> AnalyzeResult:
                                  v_fps,
                                  (v_width, v_height)
                                  )
-
+    frames_objects_dict = {}
+    frame_cut_time = {}
     while cap.isOpened():
         success, img = cap.read()
-        start = time.perf_counter()
         if not success:
             break
 
         if counter % 3 == 0:
             result, labels, cords, confs = yolo_detect.score_frame(img)
+            if len(result.boxes.cls) > 0:
+                frame_name = str(uuid4()) + '.jpg'
+                frame_path = os.path.join(TMP_DETECTED_FRAMES, frame_name)
+                frame_cut_time[frame_name] = counter / v_fps
+                cv2.imwrite(frame_path, result.plot()[:, :, :])
+                det_classes = [result.names.get(value, value) for value in result.boxes.cls]
+                num_classes = {name: 0 for name in result.names.values()}
+                for cl in det_classes:
+                    num_classes[result.names[cl.item()]] += 1
+                frames_objects_dict[frame_name] = {key: value for key, value in num_classes.items() if value > 0}
+
             vid_writer.write(result.plot()[:, :, :])
         else:
             vid_writer.write(img)
@@ -86,13 +96,12 @@ async def upload_video(video: UploadFile = File(...)) -> AnalyzeResult:
 
 
     # Возвращаем результаты проверки в формате JSON
+    detected_objects_frame = list({'frame_name': key, 'object_name': key_obj, 'count': value_obj, 'time': int(frame_cut_time[key])}
+         for key, value in frames_objects_dict.items()
+         for key_obj, value_obj in value.items())
     results = {
         'filename': detected_video_name,
-        'objects': [{
-            'object_name': 'example_object',
-            'count': 5,
-            'time': 10
-        }]}
+        'objects': detected_objects_frame}
     return AnalyzeResult.model_validate(results)
 
 
