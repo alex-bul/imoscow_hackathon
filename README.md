@@ -11,9 +11,13 @@
 - bootstrap-py
 - python-ffmpeg
 - imagehash
+- python-multipart
 
 Выполните следующую команду для установки библиотек:
->     $pip install ultralytics fastapi bootstrap-py python-ffmpeg imagehash
+>     pip install ultralytics fastapi bootstrap-py python-ffmpeg imagehash python-multipart
+
+Также необходимо установить веб-сервер
+>     pip install "uvicorn[standard]"
 
 ## Функциональность сервиса
 - Детекции объектов нестационарной незаконной торговли на подгружаемых видеозаписях
