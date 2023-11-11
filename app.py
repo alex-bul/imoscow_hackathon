@@ -67,6 +67,7 @@ async def upload_video(video: UploadFile = File(...)) -> AnalyzeResult:
                                  )
     frames_objects_dict = {}
     frame_cut_time = {}
+    previous_annot = None
     while cap.isOpened():
         success, img = cap.read()
         if not success:
@@ -78,12 +79,16 @@ async def upload_video(video: UploadFile = File(...)) -> AnalyzeResult:
                 frame_name = str(uuid4()) + '.jpg'
                 frame_path = os.path.join(TMP_DETECTED_FRAMES, frame_name)
                 frame_cut_time[frame_name] = counter / v_fps
-                cv2.imwrite(frame_path, result.plot()[:, :, :])
+
                 det_classes = [result.names.get(value, value) for value in result.boxes.cls]
                 num_classes = {name: 0 for name in result.names.values()}
                 for cl in det_classes:
                     num_classes[result.names[cl.item()]] += 1
                 frames_objects_dict[frame_name] = {key: value for key, value in num_classes.items() if value > 0}
+
+                if previous_annot != frames_objects_dict[frame_name]:
+                    cv2.imwrite(frame_path, result.plot()[:, :, :])
+                    previous_annot = frames_objects_dict[frame_name]
 
             vid_writer.write(result.plot()[:, :, :])
         else:
