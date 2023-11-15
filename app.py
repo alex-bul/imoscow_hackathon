@@ -4,7 +4,7 @@ import datetime
 import uvicorn
 import aiofiles
 
-from fastapi import FastAPI, Request, UploadFile, File
+from fastapi import FastAPI, Request, UploadFile, File, HTTPException
 
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -155,6 +155,44 @@ async def upload_video(request: Request, video: UploadFile = File(...)) -> Analy
     print(results)
     return AnalyzeResult.model_validate(results)
 
+
+@app.post("/upload-rtsp")
+async def upload_rtsp(request: Request, rtsp_url: str):
+    cap = cv2.VideoCapture(rtsp_url)
+    if cap.isOpened():
+        v_width = int(cap.get(3))
+        v_height = int(cap.get(4))
+        v_fps = int(cap.get(5))
+
+    success, img = cap.read()
+    if not success:
+        raise HTTPException(status_code=404, detail='Can not read rtsp')
+
+    frames_objects_dict = {}
+    result, labels, cords, confs = yolo_detect.score_frame(img)
+    frame_name = str(uuid4()) + '.jpg'
+    frame_path = os.path.join(TMP_DETECTED_FRAMES, frame_name)
+    det_classes = [result.names.get(value, value) for value in result.boxes.cls]
+    num_classes = {name: 0 for name in result.names.values()}
+    for cl in det_classes:
+        num_classes[result.names[cl.item()]] += 1
+    dict_count_obj = {key: value for key, value in num_classes.items() if value > 0}
+    cv2.imwrite(frame_path, result.plot()[:, :, :])
+    frames_objects_dict[frame_name] = dict_count_obj
+
+    detected_objects_frame = []
+    for key, value in frames_objects_dict.items():
+        for key_obj, value_obj in value.items():
+            detected_objects_frame.append(
+                {'frame_name': key, 'object_name': CLASS_NAMING.get(key_obj.lower(), key_obj), 'count': value_obj,
+                 'time': str(datetime.datetime.now()),
+                 'frame_url': str(request.url_for('frames', path=key))})
+
+    results = {
+        'filename': rtsp_url,
+        'objects': detected_objects_frame}
+    print(results)
+    return AnalyzeResult.model_validate(results)
 
 if __name__ == '__main__':
     uvicorn.run(app, port=3000)
