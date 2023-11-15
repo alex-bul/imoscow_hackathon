@@ -12,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 
 from models import AnalyzeResult
 import cv2
+import numpy as np
 
 from uuid import uuid4
 from yolo_detector import YoloDetector
@@ -37,6 +38,20 @@ CLASS_NAMING = {
     'trunk': "Продажа из авто"
 }
 
+STATIST_BORDER = {
+    0: 1,  # Balloons
+    1: 10,  # Box of Products
+    2: 5,  # Cotton Candy
+    3: 1,  # Cotton Candy Tent
+    4: 2,  # Different items
+    5: 7,  # Flowers
+    6: 1,  # Kvas
+    7: 2,  # Kvas bottle
+    8: 1,  # Stall
+    9: 1,  # Stall Umbr
+    10: 1  # Trunk
+}
+
 for folder in [TMP_UPLOADS_DIRECTORY, TMP_DETECTED_FRAMES, TMP_DETECTED_VIDEOS]:
     if folder not in os.listdir():
         os.mkdir(folder)
@@ -45,6 +60,13 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/frames", StaticFiles(directory="frames"), name="frames")
 
 templates = Jinja2Templates(directory="templates")
+
+
+async def is_point_of_sale(classes):
+    for i in range(11):
+        if len(classes) > 0 and sum(classes == i) >= STATIST_BORDER[i]:
+            return True
+    return False
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -95,7 +117,7 @@ async def upload_video(request: Request, video: UploadFile = File(...)) -> Analy
 
         if counter % 3 == 0:
             result, labels, cords, confs = yolo_detect.score_frame(img)
-            if len(result.boxes.cls) > 0:
+            if await is_point_of_sale(result.boxes.cls):
                 frame_name = str(uuid4()) + '.jpg'
                 frame_path = os.path.join(TMP_DETECTED_FRAMES, frame_name)
                 frame_cut_time[frame_name] = counter / v_fps
