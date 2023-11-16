@@ -152,7 +152,6 @@ async def upload_video(request: Request, video: UploadFile = File(...)) -> Analy
             #         roi = img[i * roi_height:(i + 1) * roi_height, j * roi_width:(j + 1) * roi_width]
             #         result, labels, cords, confs = yolo_detect.score_frame(roi)
             # endregion
-
             if await is_point_of_sale(result.boxes.cls) and counter / v_fps - time_stamp > 5:
                 frame_name = str(uuid4()) + '.jpg'
                 frame_path = os.path.join(TMP_DETECTED_FRAMES, frame_name)
