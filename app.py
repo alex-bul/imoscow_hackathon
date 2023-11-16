@@ -117,6 +117,18 @@ async def upload_video(request: Request, video: UploadFile = File(...)) -> Analy
 
         if counter % 3 == 0:
             result, labels, cords, confs = yolo_detect.score_frame(img)
+
+            # region работа с областями интереса
+            # height, width, _ = img.shape
+            # roi_height = height // 2
+            # roi_width = width // 2
+            #
+            # for i in range(2):
+            #     for j in range(2):
+            #         roi = img[i * roi_height:(i + 1) * roi_height, j * roi_width:(j + 1) * roi_width]
+            #         result, labels, cords, confs = yolo_detect.score_frame(roi)
+            # endregion
+
             if await is_point_of_sale(result.boxes.cls):
                 frame_name = str(uuid4()) + '.jpg'
                 frame_path = os.path.join(TMP_DETECTED_FRAMES, frame_name)
