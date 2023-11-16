@@ -12,16 +12,19 @@ from fastapi.templating import Jinja2Templates
 
 from models import AnalyzeResult
 import cv2
-import numpy as np
+import time
 
 from uuid import uuid4
-from yolo_detector import YoloDetector
+from yolo_detector import YoloDetector, calculate_iou
 
 app = FastAPI()
 yolo_detect = YoloDetector('./best.pt')
 
+os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
+
 TMP_UPLOADS_DIRECTORY = 'uploads'
 TMP_DETECTED_FRAMES = 'frames'
+TMP_DETECTED_FRAMES_RTSP = 'frames_rtsp'
 TMP_DETECTED_VIDEOS = 'detected_videos'
 
 CLASS_NAMING = {
@@ -43,7 +46,7 @@ STATIST_BORDER = {
     1: 10,  # Box of Products
     2: 5,  # Cotton Candy
     3: 1,  # Cotton Candy Tent
-    4: 2,  # Different items
+    4: 1,  # Different items
     5: 7,  # Flowers
     6: 1,  # Kvas
     7: 2,  # Kvas bottle
@@ -110,17 +113,51 @@ async def upload_video(request: Request, video: UploadFile = File(...)) -> Analy
     frames_objects_dict = {}
     frame_cut_time = {}
     previous_annot = None
+
+    all_detections = []
+    curr_detections = []
+    time_stamp = -5
     while cap.isOpened():
         success, img = cap.read()
         if not success:
             break
 
-        if counter % 3 == 0:
+        if counter % 1 == 0:
             result, labels, cords, confs = yolo_detect.score_frame(img)
-            if await is_point_of_sale(result.boxes.cls):
+
+            img, curr_detections = yolo_detect.plot_boxes(
+                labels, cords, confs, img,
+                height=img.shape[0],
+                width=img.shape[1],
+                conf_threshold=0.40
+            )
+
+            is_new_det = [True] * len(curr_detections)
+            for idx, (b, c, det_class, label) in enumerate(curr_detections):
+                for gt in all_detections[label]:
+                    curr_iou = calculate_iou(gt, b)
+                    if curr_iou > 0.90:
+                        is_new_det[idx] = False
+
+                if is_new_det[idx]:
+                    all_detections.append(b)
+
+            # region работа с областями интереса
+            # height, width, _ = img.shape
+            # roi_height = height // 2
+            # roi_width = width // 2
+            #
+            # for i in range(2):
+            #     for j in range(2):
+            #         roi = img[i * roi_height:(i + 1) * roi_height, j * roi_width:(j + 1) * roi_width]
+            #         result, labels, cords, confs = yolo_detect.score_frame(roi)
+            # endregion
+
+            if await is_point_of_sale(result.boxes.cls) and counter / v_fps - time_stamp > 5:
                 frame_name = str(uuid4()) + '.jpg'
                 frame_path = os.path.join(TMP_DETECTED_FRAMES, frame_name)
                 frame_cut_time[frame_name] = counter / v_fps
+                time_stamp = counter / v_fps
 
                 det_classes = [result.names.get(value, value) for value in result.boxes.cls]
                 num_classes = {name: 0 for name in result.names.values()}
@@ -133,8 +170,16 @@ async def upload_video(request: Request, video: UploadFile = File(...)) -> Analy
                     previous_annot = dict_count_obj
                     frames_objects_dict[frame_name] = dict_count_obj
 
+            if len(result.boxes.cls) == 0:
+                previous_annot = None
             vid_writer.write(result.plot()[:, :, :])
         else:
+            for b, confidence, det_class, label in curr_detections:
+                prob_round = round(confidence, 2)
+                img = cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (255, 0, 0), 2)
+                img = cv2.putText(img, f'{det_class}_{prob_round}', (int(b[0]), int(b[1] - 10)),
+                        cv2.FONT_HERSHEY_PLAIN, 0.9, (30, 255, 0), 2)
+
             vid_writer.write(img)
 
         counter += 1
@@ -158,20 +203,20 @@ async def upload_video(request: Request, video: UploadFile = File(...)) -> Analy
 
 @app.post("/upload-rtsp")
 async def upload_rtsp(request: Request, rtsp_url: str):
-    cap = cv2.VideoCapture(rtsp_url)
-    if cap.isOpened():
-        v_width = int(cap.get(3))
-        v_height = int(cap.get(4))
-        v_fps = int(cap.get(5))
+    if TMP_DETECTED_FRAMES_RTSP not in os.listdir():
+        os.mkdir(TMP_DETECTED_FRAMES_RTSP)
+    print(rtsp_url)
+    cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+    time.sleep(10)
 
     success, img = cap.read()
     if not success:
-        raise HTTPException(status_code=404, detail='Can not read rtsp')
+        return None
 
     frames_objects_dict = {}
     result, labels, cords, confs = yolo_detect.score_frame(img)
     frame_name = str(uuid4()) + '.jpg'
-    frame_path = os.path.join(TMP_DETECTED_FRAMES, frame_name)
+    frame_path = os.path.join(TMP_DETECTED_FRAMES_RTSP, frame_name)
     det_classes = [result.names.get(value, value) for value in result.boxes.cls]
     num_classes = {name: 0 for name in result.names.values()}
     for cl in det_classes:
@@ -193,6 +238,7 @@ async def upload_rtsp(request: Request, rtsp_url: str):
         'objects': detected_objects_frame}
     print(results)
     return AnalyzeResult.model_validate(results)
+
 
 if __name__ == '__main__':
     uvicorn.run(app, port=3000)
